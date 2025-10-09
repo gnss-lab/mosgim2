@@ -1,8 +1,8 @@
 import os
 import time
 import numpy as np
-import concurrent.futures
-from datetime import datetime
+import h5py
+from datetime import datetime, UTC
 from warnings import warn
 from collections import defaultdict
 from pathlib import Path
@@ -10,6 +10,9 @@ from pathlib import Path
 
 from mosgim2.coords.coords import xyz2spher
 from mosgim2.coords.geom import ipp, elevation
+
+from mosgim2.geo.geo import HM
+from mosgim2.geo.geo import sub_ionospheric
 
 
 
@@ -114,3 +117,58 @@ class LoaderTxt(Loader):
                     print(f'{sat_file} not processed. Reason: {e}')
             print(f'{site} contribute {count} files, takes {time.time() - st}')
             
+
+class LoaderHDF(Loader):
+    
+    def __init__(self, hdf_path, IPPh1, IPPh2):
+        super().__init__(IPPh1, IPPh2)
+        self.hdf_path = hdf_path
+        
+    def get_files(self):
+        result = []
+        for subdir, _, files in os.walk(self.hdf_path):
+            for filename in files:
+                filepath = Path(subdir) / filename
+                if str(filepath).endswith(".h5"):
+                    result.append(filepath)
+        if len(result) != 1:
+            msg = f'Must be exactly one hdf in {self.hdf_path} or subfolders'
+            raise ValueError(msg)
+        return result
+    
+    def __get_hdf_file(self):
+        return self.get_files()[0]
+    
+    def generate_data(self, sites=[]):
+        hdf_file = h5py.File(self.__get_hdf_file(), 'r')
+        self.not_found_sites = sites[:]
+        for site in hdf_file:
+            if sites and not site in sites:
+                continue
+            self.not_found_sites.remove(site)
+            slat = hdf_file[site].attrs['lat']
+            slon = hdf_file[site].attrs['lon']
+            st = time.time()
+            count = 0
+            for sat in hdf_file[site]:
+                sat_data = hdf_file[site][sat]
+                arr = np.empty(
+                    (len(sat_data['tec']),), 
+                    list(zip(self.FIELDS,self.DTYPE))
+                )
+                el = sat_data['elevation'][:]
+                az = sat_data['azimuth'][:]
+                ts = sat_data['timestamp'][:]
+                ipp_lat_h1, ipp_lon_h1 = sub_ionospheric(slat, slon, self.IPPh1, az, el)
+                ipp_lat_h2, ipp_lon_h2 = sub_ionospheric(slat, slon, self.IPPh2, az, el)
+                
+                arr['datetime'] = np.array([datetime.fromtimestamp(float(t), tz=UTC) for t in ts])
+                arr['el'] = np.rad2deg(el)
+                arr['ipp_lat1'] = np.rad2deg(ipp_lat_h1)
+                arr['ipp_lon1'] = np.rad2deg(ipp_lon_h1)
+                arr['ipp_lat2'] = np.rad2deg(ipp_lat_h2)
+                arr['ipp_lon2'] = np.rad2deg(ipp_lon_h2)
+                arr['tec'] = sat_data['tec'][:]
+                count += 1
+                yield arr, sat + '_' + site
+            print(f'{site} contribute {count} files, takes {time.time() - st}')

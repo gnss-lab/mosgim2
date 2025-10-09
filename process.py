@@ -5,7 +5,7 @@ import time
 import h5py
 
 # imports from project
-from mosgim2.data.loader import LoaderTxt
+from mosgim2.data.loader import LoaderTxt, LoaderHDF
 from mosgim2.data.tec_prepare import(process_data, combine_data,
                                      calc_coordinates,
                                      get_data,
@@ -17,11 +17,30 @@ from mosgim2.mosgim.mosgim2 import solve_all as solve2
 from mosgim2.consts.phys_consts import secs_in_day, POLE_THETA, POLE_PHI
 from mosgim2.data.writer import writer
 
-if __name__ == '__main__':
+import argparse
 
-    res_path = config.res_path
-    data_path = config.data_path
-    coords = config.coords
+def parse_args():
+    parser = argparse.ArgumentParser(description="Parse MosGIM configuration.")
+
+    # Add arguments for each config option
+    parser.add_argument("--data_path", type=str, help="Path to data directory")
+    parser.add_argument("--res_path", type=str, help="Path to results directory")
+    parser.add_argument("--nworkers", type=int, help="Number of CPU cores to use")
+    parser.add_argument("--coords", type=str, choices=["mag", "geo", "modip"], help="Type of coordinates to use")
+    args = parser.parse_args()
+    return args
+
+if __name__ == '__main__':
+    cmd_args = parse_args()
+
+    res_path = cmd_args.res_path if cmd_args.res_path else config.res_path 
+    data_path = cmd_args.data_path if cmd_args.data_path else config.data_path 
+    coords = cmd_args.coords if cmd_args.coords else config.coords
+    nworkers = cmd_args.nworkers if cmd_args.nworkers else config.nworkers
+    if data_path == "/PATH/TO/INPUT/DATA":
+        raise ValueError("Specify path to input data")
+    if res_path == "/PATH/TO/RESULTS":
+        raise ValueError("Specify path to results")
     IPPh_layer1 = config.IPPh_layer1
     IPPh_layer2 = config.IPPh_layer2
     nbig_layer1 = config.nbig_layer1
@@ -34,7 +53,6 @@ if __name__ == '__main__':
     linear = config.linear
     lcp = config.lcp 
     nlayers = config.nlayers
-    nworkers = config.nworkers
     maxgap = config.maxgap
     maxjump = config.maxjump 
     el_cutoff = config.el_cutoff
@@ -48,7 +66,8 @@ if __name__ == '__main__':
 
     st = time.time()
 
-    loader = LoaderTxt(root_dir=data_path, IPPh1 = IPPh_layer1, IPPh2 = IPPh_layer2)
+    #loader = LoaderTxt(root_dir=data_path, IPPh1 = IPPh_layer1, IPPh2 = IPPh_layer2)
+    loader = LoaderHDF(data_path, IPPh1 = IPPh_layer1, IPPh2 = IPPh_layer2)
     data_generator = loader.generate_data(sites=sites)
 
     data = process_data(data_generator, maxgap = maxgap, maxjump = maxjump, el_cutoff = el_cutoff,

@@ -1,9 +1,10 @@
 from numpy import deg2rad as rad
 
+
 # MosGIM configuration
 #[PATHS]
-data_path = <INPUT DATA DIR>
-res_path = <RES DIRECTORY>
+data_path = "/PATH/TO/INPUT/DATA" 
+res_path = "/PATH/TO/RESULTS" 
 
 #[GENERAL]
 nworkers = 1 # number of cpu cores you are able to use
@@ -49,5 +50,3 @@ if (nbig_layer1 < mbig_layer1):
 if (nbig_layer2 < mbig_layer2): 
     print('wrong degree and order of SH for first layer relation, setting to default N=M ')
     mbig_layer2 = nbig_layer2 
-
-
