@@ -427,7 +427,7 @@ def solve_all(nbig_layer1, mbig_layer1, nbig_layer2, mbig_layer2, IPPh_layer1, I
     ndays = np.ceil((np.max(data['time']) - np.min(data['time'])) / secs_in_day).astype('int') # number of days in data
     nT = tint * ndays  # number of intervals for all time period      
 
-    nchunks = np.int(len(data['rhs']) / chunk_size) # set chuncks size to fit in memory 
+    nchunks = int(len(data['rhs']) / chunk_size) # set chuncks size to fit in memory 
     nchunks = 1 if nchunks < 1 else nchunks
 
     print('start, nbig_l1=%s, mbig_l1=%s, nbig_l2=%s, mbig_l2=%s, nT=%s, ndays=%s, sigma0=%s, sigma_v=%s, number of observations=%s, number of chuncks=%s' % (nbig_layer1, mbig_layer1, nbig_layer2, mbig_layer2, nT, ndays, sigma0, sigma_v, len(data['rhs']), nchunks))
