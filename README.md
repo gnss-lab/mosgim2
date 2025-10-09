@@ -36,9 +36,13 @@ If you want to work in modip coordinates, you need to generate file `modip.npz` 
 
     python modip.py --year 2017 --alt  300.
 
-Use `process.py` to solve for coefficients of spherical harmonics expansion of GIM in MLT coordinate system, which will be stored in `res_file`
+Set proper variables in `config.py` and use `process.py` to solve for coefficients of spherical harmonics expansion of GIM in MLT coordinate system, which will be stored in `res_file`
 
     python process.py
+
+For bulk processing use command line arguments:
+
+    python process.py --data_path /home/artem/data/mosgim/hdf/ --res_path /home/artem/data/mosgim/results --nworkers 1 --coords mag
 
 Script `plot.py` is provided for your convinience to give an example of converting SH coefficients from `res_file`, obtained at the previous step, to plot GIMs in spherical coordinate system. 
 
