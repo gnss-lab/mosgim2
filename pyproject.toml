@@ -1,0 +1,8 @@
+[project]
+name = "mosgim"
+version = "0.1.0"
+description = "Set of functions to produce GIM from set of TEC series"
+authors = ["Artem Padokhin <padokhin@physics.msu.ru>"]
+license = "MIT"
+readme = "README.md"
+requires-python = "<=3.12" # entire calculation only tested with 3.12
