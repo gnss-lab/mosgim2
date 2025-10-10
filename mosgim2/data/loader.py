@@ -122,22 +122,12 @@ class LoaderHDF(Loader):
     
     def __init__(self, hdf_path, IPPh1, IPPh2):
         super().__init__(IPPh1, IPPh2)
+        if not str(hdf_path).endswith(".h5"):
+            raise ValueError(f"The file {hdf_path} doesn't have proper extension '.h5'")
         self.hdf_path = hdf_path
         
-    def get_files(self):
-        result = []
-        for subdir, _, files in os.walk(self.hdf_path):
-            for filename in files:
-                filepath = Path(subdir) / filename
-                if str(filepath).endswith(".h5"):
-                    result.append(filepath)
-        if len(result) != 1:
-            msg = f'Must be exactly one hdf in {self.hdf_path} or subfolders'
-            raise ValueError(msg)
-        return result
-    
     def __get_hdf_file(self):
-        return self.get_files()[0]
+        return self.hdf_path
     
     def generate_data(self, sites=[], gnss=['R', 'G']):
         hdf_file = h5py.File(self.__get_hdf_file(), 'r')

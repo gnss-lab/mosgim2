@@ -6,6 +6,9 @@ from numpy import deg2rad as rad
 data_path = "/PATH/TO/INPUT/DATA" 
 res_path = "/PATH/TO/RESULTS" 
 
+#[DATA] 
+data_type = "tecsuite-dat" # [simurg-hdf, tecsuite-dat]
+
 #[GENERAL]
 nworkers = 1 # number of cpu cores you are able to use
 
@@ -34,6 +37,10 @@ linear = True # assumes piecewise linear interpolation between time nodes, if fa
 lcp = True # impose positivity constrains for TEC in each layer by solving LCP 
 
 #[TEST CORRECTNESS]
+
+if data_type not in ['simurg-hdf', 'tecsuite-dat']:
+    print('wrong coordinate system, setting to default mag ')
+    coords = 'tecsuite-dat'
 
 if coords not in ['mag', 'geo', 'modip']:
     print('wrong coordinate system, setting to default mag ')
