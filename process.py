@@ -66,8 +66,14 @@ if __name__ == '__main__':
 
     st = time.time()
 
-    #loader = LoaderTxt(root_dir=data_path, IPPh1 = IPPh_layer1, IPPh2 = IPPh_layer2)
-    loader = LoaderHDF(data_path, IPPh1 = IPPh_layer1, IPPh2 = IPPh_layer2)
+    if Path(data_path).is_dir(): 
+        loader = LoaderTxt(root_dir=data_path, IPPh1 = IPPh_layer1, IPPh2 = IPPh_layer2)
+    elif Path(data_path).is_file() and data_path.endswith(".h5"):
+        loader = LoaderHDF(data_path, IPPh1 = IPPh_layer1 / 1000., IPPh2 = IPPh_layer2 / 1000.)
+    else:
+        raise ValueError(
+            f"Could not handle the input data {data_path}." \
+            " Must be folder with dat-files or h5-file.")
     data_generator = loader.generate_data(sites=sites)
 
     data = process_data(data_generator, maxgap = maxgap, maxjump = maxjump, el_cutoff = el_cutoff,

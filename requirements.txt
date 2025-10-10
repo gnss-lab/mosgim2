@@ -1,4 +1,4 @@
-#Cartopy==0.0.0
+Cartopy==0.25.0
 numpy==2.2.6
 scipy==1.16.2
 pyIGRF==0.3.3
@@ -6,5 +6,6 @@ celluloid==0.2.0
 matplotlib==3.10.6
 loguru==0.7.3
 tqdm==4.67.1
+h5py==2.2.6
 lemkelcp @ git+https://github.com/AndyLamperski/lemkelcp@977cc110ac26d8db6b0d4114e98c3d3e6bb448da
 

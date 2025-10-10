@@ -340,7 +340,7 @@ def solve_all(nbig, mbig, IPPh, tint, sigma0, sigma_v, data, gigs=2, lcp=True, n
     ndays = np.ceil((np.max(data['time']) - np.min(data['time'])) / secs_in_day).astype('int') # number of days in data
     nT = tint * ndays  # number of intervals for all time period      
 
-    nchunks = np.int(len(data['rhs']) / chunk_size) # set chuncks size to fit in memory 
+    nchunks = int(len(data['rhs']) / chunk_size) # set chuncks size to fit in memory 
     nchunks = 1 if nchunks < 1 else nchunks
 
     print('start, nbig=%s, mbig=%s, nT=%s, ndays=%s, sigma0=%s, sigma_v=%s, number of observations=%s, number of chuncks=%s' % (nbig, mbig, nT, ndays, sigma0, sigma_v, len(data['rhs']), nchunks))

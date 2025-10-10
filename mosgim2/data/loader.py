@@ -139,7 +139,7 @@ class LoaderHDF(Loader):
     def __get_hdf_file(self):
         return self.get_files()[0]
     
-    def generate_data(self, sites=[]):
+    def generate_data(self, sites=[], gnss=['R', 'G']):
         hdf_file = h5py.File(self.__get_hdf_file(), 'r')
         self.not_found_sites = sites[:]
         for site in hdf_file:
@@ -151,6 +151,8 @@ class LoaderHDF(Loader):
             st = time.time()
             count = 0
             for sat in hdf_file[site]:
+                if not sat[0].upper() in gnss:
+                    continue
                 sat_data = hdf_file[site][sat]
                 arr = np.empty(
                     (len(sat_data['tec']),), 
@@ -163,12 +165,12 @@ class LoaderHDF(Loader):
                 ipp_lat_h2, ipp_lon_h2 = sub_ionospheric(slat, slon, self.IPPh2, az, el)
                 
                 arr['datetime'] = np.array([datetime.fromtimestamp(float(t), tz=UTC) for t in ts])
-                arr['el'] = np.rad2deg(el)
-                arr['ipp_lat1'] = np.rad2deg(ipp_lat_h1)
-                arr['ipp_lon1'] = np.rad2deg(ipp_lon_h1)
-                arr['ipp_lat2'] = np.rad2deg(ipp_lat_h2)
-                arr['ipp_lon2'] = np.rad2deg(ipp_lon_h2)
+                arr['el'] = el
+                arr['ipp_lat1'] = ipp_lat_h1
+                arr['ipp_lon1'] = ipp_lon_h1
+                arr['ipp_lat2'] = ipp_lat_h2
+                arr['ipp_lon2'] = ipp_lon_h2
                 arr['tec'] = sat_data['tec'][:]
                 count += 1
                 yield arr, sat + '_' + site
-            print(f'{site} contribute {count} files, takes {time.time() - st}')
+            print(f'{site} contribute {count} series, takes {time.time() - st}')
