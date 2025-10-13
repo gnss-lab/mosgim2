@@ -3,6 +3,7 @@ from pathlib import Path
 from datetime import datetime, timedelta, timezone
 import time
 import h5py
+import os
 
 # imports from project
 from mosgim2.data.loader import LoaderTxt, LoaderHDF
@@ -31,14 +32,9 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-if __name__ == '__main__':
-    cmd_args = parse_args()
 
-    res_path = cmd_args.res_path if cmd_args.res_path else config.res_path 
-    data_path = cmd_args.data_path if cmd_args.data_path else config.data_path 
-    coords = cmd_args.coords if cmd_args.coords else config.coords
-    nworkers = cmd_args.nworkers if cmd_args.nworkers else config.nworkers
-    data_type = cmd_args.data_type if cmd_args.data_type else config.data_type
+def process(data_path, res_path, data_type, coords, nworkers):
+
     if data_path == "/PATH/TO/INPUT/DATA":
         raise ValueError("Specify path to input data")
     if res_path == "/PATH/TO/RESULTS":
@@ -94,8 +90,9 @@ if __name__ == '__main__':
     nT_add = 1 if linear else 0
 
     if not (ndays == 1 or ndays == 3):
-        print('procedure only works with 1 or 3 consecutive days data')
-        exit(1)
+        print(f'procedure only works with 1 or 3 consecutive days data see {np.max(data['time'])} and {np.min(data['time'])}')
+        #exit(1)
+        return
 
     if nlayers == 2:
         res, disp_scale, Ninv = solve2(nbig_layer1, mbig_layer1, nbig_layer2, mbig_layer2, IPPh_layer1, IPPh_layer2, tint, sigma0, sigma_v, data, gigs=2, lcp=lcp, nworkers=nworkers, linear=linear)
@@ -130,3 +127,31 @@ if __name__ == '__main__':
                    nlayers=nlayers, layer1_dims=[nbig_layer1, mbig_layer1], layer1_height=IPPh_layer1, layer2_dims = [nbig_layer2, mbig_layer2], layer2_height = IPPh_layer2, 
                    sites=sorted(set(sites) - set(loader.not_found_sites)))  
 
+
+if __name__ == '__main__':
+    cmd_args = parse_args()
+    res_path = cmd_args.res_path if cmd_args.res_path else config.res_path 
+    data_path = cmd_args.data_path if cmd_args.data_path else config.data_path 
+    coords = cmd_args.coords if cmd_args.coords else config.coords
+    nworkers = cmd_args.nworkers if cmd_args.nworkers else config.nworkers
+    data_type = cmd_args.data_type if cmd_args.data_type else config.data_type
+    processed = []
+    if Path(data_path).is_dir() and data_type == "simurg-hdf":
+        files = [f for f in os.listdir(data_path) if f.endswith(".h5")]
+        files.sort()
+        while len(processed) < len(files):
+            
+            for file in files:
+                print(f"Processing {file}")
+                if file in processed:
+                    continue
+                cuurent_path = str(Path(data_path) / file)
+                try:
+                    process(cuurent_path, res_path, data_type, coords, nworkers)    
+                except Exception as e:
+                    print(f"Failed to process {cuurent_path} due to:\n" + e.__traceback__)
+                processed.append(file)
+            files = [f for f in os.listdir(data_path) if f.endswith(".h5")]
+            files.sort()
+    else:
+        process(data_path, res_path, data_type, coords, nworkers)
