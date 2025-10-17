@@ -1,7 +1,7 @@
 import numpy as np
 from pathlib import Path
 from mosgim2.coords.coords import geo2mag, geo2lt, geo2modip
-from mosgim2.plot.plot import plot1l, plot2l
+from mosgim2.plot.plot import plot1l, plot2l, plot_1layer_separate_frames, plot_2layer_separate_frames
 from mosgim2.plot.frames import makeframes
 
 import h5py
@@ -16,7 +16,11 @@ if __name__ == '__main__':
                         help='Path to data, map creation')
     parser.add_argument('--out_file',
                         type=Path,
-                        help='Path to video', default='animation.gif')
+                        help='Path to video', 
+                        default='animation.gif')
+    parser.add_argument('--separate_frames',
+                        help='If presented separate maps will be saved', 
+                        action="store_true")
     args = parser.parse_args()
 
 
@@ -38,13 +42,23 @@ if __name__ == '__main__':
     # prepare net to estimate TEC on it
     colat = np.arange(2.5, 180, 2.5)
     lon = np.arange(-180, 180, 5.)
+    if args.separate_frames:
+        template = args.out_file.stem
+        frame_files = [args.out_file.parent / (template + str(i).zfill(2) + ".png") for i in range(nmaps)]
+        files = {'animation': args.out_file, 'frames': frame_files}
 
     frames1 = makeframes(lon, colat, coord, nbig_layer1, mbig_layer1, res_layer1, ts)    
     if nlayers == 2:
         frames2 = makeframes(lon, colat, coord, nbig_layer2, mbig_layer2, res_layer2, ts)    
-        plot2l(str(args.out_file), colat, lon, ts, frames1, frames2)
+        if args.separate_frames:
+            plot_2layer_separate_frames(files, colat, lon, ts, frames1, frames2, IPPh_layer1 / 1000., IPPh_layer2 / 1000.)
+        else:
+            plot2l(str(args.out_file), colat, lon, ts, frames1, frames2)
     else:
-        plot1l(str(args.out_file), colat, lon, ts, frames1)    
+        if args.separate_frames:
+            plot_1layer_separate_frames(files, colat, lon, ts, frames1, IPPh_layer1 / 1000.)
+        else:
+            plot1l(str(args.out_file), colat, lon, ts, frames1)    
     
 
 

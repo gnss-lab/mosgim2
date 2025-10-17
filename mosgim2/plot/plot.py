@@ -3,6 +3,8 @@ import matplotlib.animation as animation
 import cartopy.crs as ccrs
 import numpy as np
 import datetime
+import imageio
+from datetime import UTC
 
 
 def plot2l(out_file, colat, lon, ts, frames1, frames2):
@@ -96,3 +98,116 @@ def plot1l(out_file, colat, lon, ts, frames1):
 
     anim = animation.FuncAnimation(fig, animate, frames=len(ts), repeat=False)
     anim.save(out_file, writer='imagemagick')
+
+def plot_2layer_separate_frames(out_files, colat, lon, ts, frames1, frames2, height1, height2):
+    """
+    out_files = {
+        'animation': 'output.mp4',
+        'frames': ['frame_000.png', 'frame_001.png', ...]
+    }
+    """
+    assert len(frames1) == len(frames2) == len(out_files['frames']), \
+        "frames1, frames2, and out_files['frames'] must have same length"
+
+    time = np.array([datetime.datetime.fromtimestamp(float(t), tz=UTC) for t in ts])
+    lon_m, colat_m = np.meshgrid(lon, colat)
+
+    # Compute global limits for consistent color scaling
+    layer_levels = []
+    layer_frames = [
+        [np.array(fr1) + np.array(fr2) for fr1, fr2 in zip(frames1, frames2)], 
+        [np.array(fr) for fr in frames1], 
+        [np.array(fr) for fr in frames2], 
+    ]
+    for frames in layer_frames:
+        m = np.max(np.array(frames))
+        m = (int(m / 5.) + 1) * 5.
+        levels = np.arange(0, m + 2.5, 2.5)
+        if len(levels) >= 30:
+            levels = np.arange(0, m + 5., 5.)
+        layer_levels.append(levels)
+    layer_levels[1] = layer_levels[0] # use levels for GIM to ionosphere (layer 1)
+    # --- Setup figure once ---
+    fig = plt.figure(figsize=(5, 10))
+    ax1 = fig.add_subplot(3, 1, 1, projection=ccrs.PlateCarree())
+    ax2 = fig.add_subplot(3, 1, 2, projection=ccrs.PlateCarree())
+    ax3 = fig.add_subplot(3, 1, 3, projection=ccrs.PlateCarree())
+    axs = [ax1, ax2, ax3]
+
+    layer_names = ['Combined (GIM)', f'Ionosphere  (h={height1} km)', f'Plasmasphere (h={height2} km)']
+    for ax, frames, levels, name in zip(axs, layer_frames, layer_levels, layer_names):
+        ax.coastlines()
+        cont = ax.contourf(lon_m, 90. - colat_m, frames[0], levels, cmap=plt.cm.jet, transform=ccrs.PlateCarree())
+        cbar1 = fig.colorbar(cont, ax=ax, orientation='horizontal', pad=0.05)
+        time_label = time[0].strftime("%Y-%m-%d %H:%M  UT")
+        ax.set_title(f"{name}, {time_label}")
+
+    plt.tight_layout()
+
+    # --- Update loop ---
+    for i, frame_path in enumerate(out_files['frames']):
+        for ax, frames, levels, name in zip(axs, layer_frames, layer_levels, layer_names):
+            cont = ax.contourf(lon_m, 90. - colat_m, frames[i], levels, cmap=plt.cm.jet, transform=ccrs.PlateCarree())
+            time_label = time[i].strftime("%Y-%m-%d %H:%M UT")
+            ax.set_title(f"{name}, {time_label}")
+
+        fig.savefig(frame_path, dpi=300)
+
+    plt.close(fig)
+    print("\nAll frames saved.")
+
+    # --- Animation creation ---
+    print("Constructing animation from saved frames...")
+    with imageio.get_writer(out_files['animation'], mode="I") as writer:
+        for frame_path in out_files['frames']:
+            image = imageio.imread(frame_path)
+            writer.append_data(image)
+    print(f"\nAnimation saved to {out_files['animation']}")
+
+
+def plot_1layer_separate_frames(out_files, colat, lon, ts, frames, height):
+    """
+    out_files = {
+        'animation': 'output.mp4',
+        'frames': ['frame_000.png', 'frame_001.png', ...]
+    }
+    """
+    assert len(frames) == len(out_files['frames']), \
+        "frames1 and out_files['frames'] must have same length"
+
+    time = np.array([datetime.datetime.fromtimestamp(float(t), tz=UTC) for t in ts])
+    lon_m, colat_m = np.meshgrid(lon, colat)
+
+    m1 = np.max(np.array(frames))
+    m1 = (int(m1 / 5.) + 1) * 5.
+    levels = np.arange(0, m1, 2.5)
+    if len(levels) >= 30:
+        levels = np.arange(0, m1, 5.)
+
+    fig = plt.figure(figsize=(4.5, 3))
+    ax1 = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
+    ax1.coastlines()
+
+    cont = ax1.contourf(lon_m, 90. - colat_m, frames[0], levels, cmap=plt.cm.jet, transform=ccrs.PlateCarree())
+    fig.colorbar(cont, ax=ax1, orientation='horizontal', pad=0.05)
+    ax1.set_title(f"GIM ({height} km), {time[0]}")
+
+    plt.tight_layout()
+
+    for i, frame_path in enumerate(out_files['frames']):
+        cont = ax1.contourf(lon_m, 90. - colat_m, frames[i], levels, cmap=plt.cm.jet, transform=ccrs.PlateCarree())
+        time_label = time[i].strftime("%Y-%m-%d %H:%M UT")
+        ax1.set_title(f"GIM (single-layer h={height} km), {time_label}")
+
+        fig.savefig(frame_path, dpi=300)
+
+    plt.close(fig)
+    print("\nAll frames saved.")
+
+    print("Constructing animation from saved frames...")
+    with imageio.get_writer(out_files['animation'], mode="I") as writer:
+        for frame_path in out_files['frames']:
+            image = imageio.imread(frame_path)
+            writer.append_data(image)
+
+    print(f"\nAnimation saved to {out_files['animation']}")
