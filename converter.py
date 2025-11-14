@@ -192,18 +192,29 @@ def get_epochs(mosgim_file: str | Path) -> datetime:
     epochs = [datetime.fromtimestamp(t, tz=UTC) for t in ts]
     return epochs
 
+def get_heights(mosgim_file: str | Path) -> dict[MosgimLayer, float]:
+    heights = {}
+    with h5py.File(mosgim_file, 'r') as data:
+        heights = {
+            MosgimLayer.ionosphere: data.attrs["layer1_height"] / 1000, 
+            MosgimLayer.gim: data.attrs["layer1_height"] / 1000
+        }
+        if maps[MosgimLayer.plasmasphere]:
+            heights[MosgimLayer.plasmasphere] = data.attrs["layer2_height"] / 1000
+    return heights
+
+
 def convert(
         mosgim_file: str | Path, 
         ionex_files: dict[str, Path],
-        heights: dict[str, float],
         maps: dict[str, list[NDArray]], 
         spatial_grid: NDArray
 ) -> None:
-    data = h5py.File(mosgim_file, 'r')
-
-    nmaps = data.attrs['nmaps']    
-    sites = data.attrs['sites']
+    with h5py.File(mosgim_file, 'r') as data:
+        nmaps = data.attrs['nmaps']    
+        sites = data.attrs['sites']
     epochs = get_epochs(mosgim_file)
+    heights = get_heights(mosgim_file)
     year = str(epochs[0].year)
     doy = str(epochs[0].timetuple().tm_yday).zfill(3)
     description[0] = description[0].format(doy=doy, year=year, date=epochs[0].strftime("%d-%m-%Y"))
@@ -261,10 +272,5 @@ if __name__ == '__main__':
         MosgimLayer.plasmasphere: args.out_path / pla_ionex, 
         MosgimLayer.gim: args.out_path / gim_ionex
     }
-    heights = {
-        MosgimLayer.ionosphere: config.IPPh_layer1 / 1000, 
-        MosgimLayer.plasmasphere: config.IPPh_layer2 / 1000, 
-        MosgimLayer.gim: config.IPPh_layer1 / 1000
-    }
     maps, spatial_grid = prepare_maps(args.in_file)
-    files = convert(args.in_file, files, heights, maps, spatial_grid)
+    convert(args.in_file, files, maps, spatial_grid)
