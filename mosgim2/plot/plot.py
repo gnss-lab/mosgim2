@@ -107,7 +107,7 @@ def plot_2layer_separate_frames(out_files, colat, lon, ts, frames1, frames2, hei
     }
     """
     assert len(frames1) == len(frames2) == len(out_files['frames']), \
-        "frames1, frames2, and out_files['frames'] must have same length"
+        "Number of maps must be the same as number of files they plotted to."
 
     time = np.array([datetime.datetime.fromtimestamp(float(t), tz=UTC) for t in ts])
     lon_m, colat_m = np.meshgrid(lon, colat)
@@ -158,8 +158,10 @@ def plot_2layer_separate_frames(out_files, colat, lon, ts, frames1, frames2, hei
 
     # --- Animation creation ---
     print("Constructing animation from saved frames...")
-    with imageio.get_writer(out_files['animation'], mode="I") as writer:
-        for frame_path in out_files['frames']:
+    with imageio.get_writer(out_files['animation'], mode="I", loop=0) as writer:
+        # skip last element to make animation smooth 
+        # TODO make it time based
+        for frame_path in out_files['frames'][:-1]:
             image = imageio.imread(frame_path)
             writer.append_data(image)
     print(f"\nAnimation saved to {out_files['animation']}")
@@ -173,7 +175,7 @@ def plot_1layer_separate_frames(out_files, colat, lon, ts, frames, height):
     }
     """
     assert len(frames) == len(out_files['frames']), \
-        "frames1 and out_files['frames'] must have same length"
+        "Number of maps must be the same as number of files they plotted to."
 
     time = np.array([datetime.datetime.fromtimestamp(float(t), tz=UTC) for t in ts])
     lon_m, colat_m = np.meshgrid(lon, colat)
@@ -205,8 +207,10 @@ def plot_1layer_separate_frames(out_files, colat, lon, ts, frames, height):
     print("\nAll frames saved.")
 
     print("Constructing animation from saved frames...")
-    with imageio.get_writer(out_files['animation'], mode="I") as writer:
-        for frame_path in out_files['frames']:
+    with imageio.get_writer(out_files['animation'], mode="I", loop=0) as writer:
+        # skip last element to make animation smooth 
+        # TODO make it time based
+        for frame_path in out_files['frames'][:-1]: 
             image = imageio.imread(frame_path)
             writer.append_data(image)
 
