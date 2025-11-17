@@ -33,8 +33,8 @@ def parse_args():
     return args
 
 
-def process(data_path, res_path, data_type, coords, nworkers):
-
+def process(data_path, res_path, data_type, coords, nworkers) -> Path:
+    
     if data_path == "/PATH/TO/INPUT/DATA":
         raise ValueError("Specify path to input data")
     if res_path == "/PATH/TO/RESULTS":
@@ -74,9 +74,14 @@ def process(data_path, res_path, data_type, coords, nworkers):
             " Must be folder with subfolders with dat-files or h5-file.")
     data_generator = loader.generate_data(sites=sites)
 
-    data = process_data(data_generator, maxgap = maxgap, maxjump = maxjump, el_cutoff = el_cutoff,
+    data, processed_sites = process_data(data_generator, maxgap = maxgap, maxjump = maxjump, el_cutoff = el_cutoff,
                         derivative = derivative, short = short, sparse = sparse)
-    print(sorted(set(sites) - set(loader.not_found_sites)))
+    print(f"Processed {len(processed_sites)}: {processed_sites}")
+   
+    print(f"Expected but not presented in data {len(loader.not_found_sites)}: {loader.not_found_sites}")
+    unprocessed_sites = (set(sites) - set(loader.not_found_sites)) - set(processed_sites.keys())
+    print(f"Failed to porocess {len(unprocessed_sites)}: {unprocessed_sites}")
+    
     data_combined = combine_data(data)
     result = calc_coordinates(data_combined, coords)
     data, time0 = get_data(result)
@@ -126,7 +131,10 @@ def process(data_path, res_path, data_type, coords, nworkers):
             writer(filename=res_file, res=res, time0=time0, nmaps=tint + nT_add, linear=linear, coord=coords, 
                    nlayers=nlayers, layer1_dims=[nbig_layer1, mbig_layer1], layer1_height=IPPh_layer1, layer2_dims = [nbig_layer2, mbig_layer2], layer2_height = IPPh_layer2, 
                    sites=sorted(set(sites) - set(loader.not_found_sites)))  
+    return res_file
 
+
+    
 
 if __name__ == '__main__':
     cmd_args = parse_args()
@@ -145,11 +153,12 @@ if __name__ == '__main__':
                 print(f"Processing {file}")
                 if file in processed:
                     continue
-                cuurent_path = str(Path(data_path) / file)
+                current_path = str(Path(data_path) / file)
                 try:
-                    process(cuurent_path, res_path, data_type, coords, nworkers)    
+                    f = process(current_path, res_path, data_type, coords, nworkers)    
+                    print(f"Wrote results in {f}")
                 except Exception as e:
-                    print(f"Failed to process {cuurent_path} due to:\n" + e.__traceback__)
+                    print(f"Failed to process {current_path} due to:\n" + e.__traceback__)
                 processed.append(file)
             files = [f for f in os.listdir(data_path) if f.endswith(".h5")]
             files.sort()
