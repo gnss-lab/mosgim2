@@ -40,6 +40,7 @@ def writer(filename, res, time0, nmaps, linear, coord, nlayers, layer1_dims, lay
     hf.create_dataset('timestamps', data=times)
 
     hf.attrs['sites'] = kwargs.get('sites')
+    hf.attrs['elevation_cutoff'] = kwargs.get('elevation_cutoff', -1)
     if coord == 'mag':
         hf.attrs['pole_colat'] = kwargs.get('pole_colat')
         hf.attrs['pole_long'] = kwargs.get('pole_long')

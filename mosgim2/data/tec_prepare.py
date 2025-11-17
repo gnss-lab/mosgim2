@@ -93,6 +93,7 @@ def process_data(data_generator, maxgap=35.,
                  derivative=False, short = 3600, sparse = 600):
     all_data = defaultdict(list)
     count = 0
+    sites = defaultdict(list)
     for data, data_id in data_generator:
         if data.shape==():
             print(f'No data for {data_id}')
@@ -111,9 +112,11 @@ def process_data(data_generator, maxgap=35.,
             count += len(prepared['dtec'])
             for k in prepared:
                 all_data[k].extend(prepared[k])
+            site, sat = data_id.split("_")[:2] # TODO make better ID like {'site': 'aaaa', 'sat': 'G01'}
+            sites[site].append(sat)
         except Exception as e:
             print(f'{data_id} not processed. Reason: {e}')
-    return all_data
+    return all_data, sites
 
 
 def process_intervals(data, maxgap=35., maxjump=3., el_cutoff=rad(10.), derivative=False,

@@ -162,5 +162,5 @@ class LoaderHDF(Loader):
                 arr['ipp_lon2'] = ipp_lon_h2
                 arr['tec'] = sat_data['tec'][:]
                 count += 1
-                yield arr, sat + '_' + site
+                yield arr, site + '_' + sat 
             print(f'{site} contribute {count} series, takes {time.time() - st}')
