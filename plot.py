@@ -28,12 +28,12 @@ def plot(
         frames1 = maps[MosgimLayer.ionosphere]
         frames2 = maps[MosgimLayer.plasmasphere]
         if separate_frames:
-            plot_2layer_separate_frames(files, colat, lon, ts, frames1, frames2, IPPh_layer1 / 1000., IPPh_layer2 / 1000.)
+            plot_2layer_separate_frames(plot_files, colat, lon, ts, frames1, frames2, IPPh_layer1 / 1000., IPPh_layer2 / 1000.)
         else:
             plot2l(animation_file, colat, lon, ts, frames1, frames2)
     else:
         if separate_frames:
-            plot_1layer_separate_frames(files, colat, lon, ts, frames1, IPPh_layer1 / 1000.)
+            plot_1layer_separate_frames(plot_files, colat, lon, ts, frames1, IPPh_layer1 / 1000.)
         else:
             plot1l(animation_file, colat, lon, ts, frames1)   
 

@@ -199,7 +199,7 @@ def get_heights(mosgim_file: str | Path) -> dict[MosgimLayer, float]:
             MosgimLayer.ionosphere: data.attrs["layer1_height"] / 1000, 
             MosgimLayer.gim: data.attrs["layer1_height"] / 1000
         }
-        if maps[MosgimLayer.plasmasphere]:
+        if data.attrs["nlayers"] == 2:
             heights[MosgimLayer.plasmasphere] = data.attrs["layer2_height"] / 1000
     return heights
 
