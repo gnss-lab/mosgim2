@@ -107,7 +107,8 @@ def plot_2layer_separate_frames(out_files, colat, lon, ts, frames1, frames2, hei
     }
     """
     assert len(frames1) == len(frames2) == len(out_files['frames']), \
-        "Number of maps must be the same as number of files they plotted to."
+        "Number of maps must be the same as number of files they plotted to." \
+        f"{len(frames1)} {len(frames2)} {len(out_files['frames'])}"
 
     time = np.array([datetime.datetime.fromtimestamp(float(t), tz=UTC) for t in ts])
     lon_m, colat_m = np.meshgrid(lon, colat)
