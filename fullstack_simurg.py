@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from datetime import datetime, timedelta, UTC
 from typing import Dict
+from collections import defaultdict
 
 # imports from project
 from process import process
@@ -82,7 +83,7 @@ def convert_and_plot(mosgim_file: Path, epoch: datetime) -> Dict[MosgimProduct |
     return files
 
 
-def build_datetime_filepath_dict(root_dir: Path, prefix='MOS0OPSFIN_'):
+def build_db_tree(root_dir: Path, prefix='MOS'):
     """
     Build a dictionary mapping datetime objects to file paths.
     
@@ -90,21 +91,26 @@ def build_datetime_filepath_dict(root_dir: Path, prefix='MOS0OPSFIN_'):
     Extracts YYYY and DDD from the filename to construct the datetime.
 
     """
-    files = {}
+    files = defaultdict(list)
     
     # Walk through all directories and files
     for dirpath, dirnames, filenames in os.walk(root_dir):
         for filename in filenames:
             # Only process HDF5 files matching our pattern
-            if filename.startswith(prefix) and filename.endswith(".hdf5"):
+            if filename.startswith(prefix):
                 try:
                     # Extract the date part from filename
                     # Format: MOS0OPSFIN_YYYYDDD0000_01D_01H_CMB.hdf5
                     timelabel = filename.split('_')[1]
                     dt = datetime.strptime(timelabel, "%Y%j%H%M").replace(tzinfo=UTC)
-
+                    doy = int(Path(dirpath).name)
+                    year = int(Path(dirpath).parent.name)
+                    path_date = datetime(year, 1, 1, tzinfo=UTC) + timedelta(days=(doy-1))
+                    
+                    assert dt.replace(hour=0).replace(minute=0) == path_date, \
+                        f"Date retrieved from path and file name are not the same {dt}, {path_date}"
                     file_path = Path(dirpath) / filename
-                    files[dt] = file_path.absolute()
+                    files[path_date].append(file_path.absolute())
                 except Exception as e:
                     print(f"Error processing {filename}: {e}")
     files = dict(sorted(files.items()))
@@ -137,6 +143,7 @@ def parse_args():
 
     # Add arguments for each config option
     parser.add_argument("--working_dir", type=Path, help="Path to calculation results")
+    parser.add_argument("--database_dir", type=Path, help="Path to calculation results")
     parser.add_argument("--date", type=parse_datetime, help="Start date for conversion in format %Y-%m-%d")
     parser.add_argument("--nworkers", type=int, help="Number of CPU cores to use")
     parser.add_argument("--coords", type=str, choices=["mag", "geo", "modip"], help="Type of coordinates to use")
@@ -149,16 +156,20 @@ if __name__ == '__main__':
     cmd_args = parse_args()
     
     working_dir = cmd_args.working_dir
+    database_dir = cmd_args.database_dir
     coords = cmd_args.coords 
     epoch = cmd_args.date
     nworkers = cmd_args.nworkers 
-    check_days = cmd_args.check_days
     lag_days = cmd_args.lag_days
+    if working_dir:
+        files = build_db_tree(database_dir)
+        processed_dates = list(files.keys())
+        print(f"Last processed date in {processed_dates[-1]}")
     if epoch:
         full_stack(epoch, working_dir, nworkers, coords)
     else:
         now = datetime.now().replace(tzinfo=UTC)
-        current = now - timedelta(days=check_days)
+        current = processed_dates[-1] + timedelta(days=1)
         stop = now - timedelta(days=lag_days)
         while current < stop:
             try:
