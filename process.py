@@ -2,8 +2,8 @@ import numpy as np
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 import time
-import h5py
 import os
+import shutil
 
 # imports from project
 from mosgim2.data.loader import LoaderTxt, LoaderHDF
@@ -32,13 +32,16 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-
-def process(data_path, res_path, data_type, coords, nworkers) -> Path:
+def process(data_path, res_file, data_type, coords, nworkers, override=False) -> datetime:
     
     if data_path == "/PATH/TO/INPUT/DATA":
         raise ValueError("Specify path to input data")
-    if res_path == "/PATH/TO/RESULTS":
-        raise ValueError("Specify path to results")
+    if Path(res_file).exists():
+        if not override:
+            print(f"Results file {res_file} already exists")
+            return
+        else:
+            print(f"Results file {res_file} already exists and will be overwritten")
     IPPh_layer1 = config.IPPh_layer1
     IPPh_layer2 = config.IPPh_layer2
     nbig_layer1 = config.nbig_layer1
@@ -110,7 +113,7 @@ def process(data_path, res_path, data_type, coords, nworkers) -> Path:
 
     print(f'Computation done, took {time.time() - st}')
 
-    res_file = Path(res_path, time0.strftime("%Y-%m-%d")+'.hdf5')
+    #res_file = Path(res_path, time0.strftime("%Y-%m-%d")+'.hdf5')
 
     if nlayers == 1:
         if coords == 'mag':
@@ -125,13 +128,15 @@ def process(data_path, res_path, data_type, coords, nworkers) -> Path:
     if nlayers == 2:
         if coords == 'mag':        
             writer(filename=res_file, res=res, time0=time0, nmaps=tint + nT_add, linear=linear, coord=coords, 
-                   nlayers=nlayers, layer1_dims=[nbig_layer1, mbig_layer1], layer1_height=IPPh_layer1, layer2_dims = [nbig_layer2, mbig_layer2], layer2_height = IPPh_layer2, 
+                   nlayers=nlayers, layer1_dims=[nbig_layer1, mbig_layer1], layer1_height=IPPh_layer1, 
+                   layer2_dims = [nbig_layer2, mbig_layer2], layer2_height = IPPh_layer2, 
                    sites=sorted(set(sites) - set(loader.not_found_sites)), pole_colat = POLE_THETA, pole_long = POLE_PHI)  
         else:
             writer(filename=res_file, res=res, time0=time0, nmaps=tint + nT_add, linear=linear, coord=coords, 
-                   nlayers=nlayers, layer1_dims=[nbig_layer1, mbig_layer1], layer1_height=IPPh_layer1, layer2_dims = [nbig_layer2, mbig_layer2], layer2_height = IPPh_layer2, 
+                   nlayers=nlayers, layer1_dims=[nbig_layer1, mbig_layer1], layer1_height=IPPh_layer1, 
+                   layer2_dims = [nbig_layer2, mbig_layer2], layer2_height = IPPh_layer2, 
                    sites=sorted(set(sites) - set(loader.not_found_sites)))  
-    return res_file
+    return time0
 
 
     
@@ -155,10 +160,13 @@ if __name__ == '__main__':
                     continue
                 current_path = str(Path(data_path) / file)
                 try:
-                    f = process(current_path, res_path, data_type, coords, nworkers)    
-                    print(f"Wrote results in {f}")
+                    res_file = Path(res_path) / 'mosgim_result.hdf5'
+                    epoch = process(current_path, res_file, data_type, coords, nworkers)    
+                    destination_path = Path(res_path, epoch.strftime("%Y-%m-%d")+'.hdf5')
+                    shutil.move(res_file, destination_path)
+                    print(f"File '{res_file}' moved successfully to '{destination_path}'")
                 except Exception as e:
-                    print(f"Failed to process {current_path} due to:\n" + e.__traceback__)
+                    print(f"Failed to process {current_path} due to:\n" + str(e))
                 processed.append(file)
             files = [f for f in os.listdir(data_path) if f.endswith(".h5")]
             files.sort()
