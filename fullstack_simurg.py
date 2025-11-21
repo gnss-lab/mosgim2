@@ -11,8 +11,16 @@ from process import process
 from converter import MosgimLayer, MosgimProduct, get_ionexlike_fname
 from converter import prepare_maps, convert
 from plot import plot as plot_maps
-from bulk_converter import parse_datetime
 
+def parse_datetime(datetime_str):
+    try:
+        epoch = datetime.strptime(datetime_str, "%Y-%m-%d")
+        epoch = epoch.replace(tzinfo=UTC)
+        return epoch
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"Invalid datetime format: '{datetime_str}'. Expected YYYY-MM-DD"
+        )
    
 def get_simurg_hdf(epoch: datetime, working_dir: Path) -> Path:
     str_date = epoch.strftime("%Y-%m-%d")
@@ -45,7 +53,7 @@ def convert_and_plot(mosgim_file: Path, epoch: datetime) -> Dict[MosgimProduct |
             MosgimLayer.plasmasphere: mosgim_file.parent / pla_ionex, 
             MosgimLayer.gim: mosgim_file.parent / gim_ionex
         }
-
+        plot_files = {'frames': [], 'animation': None}
         animation_fname = get_ionexlike_fname(
             epoch, timedelta(days=1), MosgimProduct.animation, MosgimLayer.combined, version=0
         )
@@ -65,36 +73,50 @@ def convert_and_plot(mosgim_file: Path, epoch: datetime) -> Dict[MosgimProduct |
         plot_maps(mosgim_file, plot_files, separate_frames=True, maps=maps)
     except Exception as e:
         print(f"Failed to process {mosgim_file} due to {e}")
-    files = ionex_files
-    files.update(plot_files)
+    files = {
+        MosgimProduct.ionex: ionex_files,
+        MosgimProduct.animation: plot_files['animation'],
+        MosgimProduct.snapshot: plot_files['frames']
+    }
     return files
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="Full stack (calculation, ionex, plots) MosGIM configuration.")
-
-    # Add arguments for each config option
-    parser.add_argument("--working_dir", type=Path, help="Path to calculation results")
-    parser.add_argument("--date", type=parse_datetime, help="Start date for conversion in format %Y-%m-%d")
-    parser.add_argument("--nworkers", type=int, help="Number of CPU cores to use")
-    parser.add_argument("--coords", type=str, choices=["mag", "geo", "modip"], help="Type of coordinates to use")
-    args = parser.parse_args()
-    return args
-
-
-if __name__ == '__main__':
-    cmd_args = parse_args()
+def build_datetime_filepath_dict(root_dir: Path, prefix='MOS0OPSFIN_'):
+    """
+    Build a dictionary mapping datetime objects to file paths.
     
-    working_dir = cmd_args.working_dir
-    coords = cmd_args.coords 
-    epoch = cmd_args.date
-    nworkers = cmd_args.nworkers 
+    Iterates over directory structure: root/YYYY/DDD/MOS0OPSFIN_YYYYDDD0000_01D_01H_CMB.hdf5
+    Extracts YYYY and DDD from the filename to construct the datetime.
+
+    """
+    files = {}
+    
+    # Walk through all directories and files
+    for dirpath, dirnames, filenames in os.walk(root_dir):
+        for filename in filenames:
+            # Only process HDF5 files matching our pattern
+            if filename.startswith(prefix) and filename.endswith(".hdf5"):
+                try:
+                    # Extract the date part from filename
+                    # Format: MOS0OPSFIN_YYYYDDD0000_01D_01H_CMB.hdf5
+                    timelabel = filename.split('_')[1]
+                    dt = datetime.strptime(timelabel, "%Y%j%H%M").replace(tzinfo=UTC)
+
+                    file_path = Path(dirpath) / filename
+                    files[dt] = file_path.absolute()
+                except Exception as e:
+                    print(f"Error processing {filename}: {e}")
+    files = dict(sorted(files.items()))
+    return files
+
+
+def full_stack(epoch: datetime, working_dir: Path, nworkers: int, coords: str):
     try:
         observation_file = get_simurg_hdf(epoch, working_dir)
         mosgim_file = get_ionexlike_fname(epoch, timedelta(days=1), MosgimProduct.coefficients, MosgimLayer.combined, version=0)
         mosgim_file = working_dir / mosgim_file
         observation_epoch = process(observation_file, mosgim_file, "simurg-hdf", coords, nworkers)  
-        if observation_epoch != epoch: 
+        if observation_epoch and observation_epoch != epoch: 
             raise ValueError(
                 f"Something wrong with data. Data are retrieved for {epoch}." \
                 f" However timestamps in data indentify {observation_epoch}"
@@ -105,7 +127,27 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"Failed to process {epoch} due to:\n" + str(e))
 
-    plot_files = {'frames': [], 'animation': None}
-    ionex_files = {}
     files = convert_and_plot(mosgim_file, epoch)
-    print(files)
+    files[MosgimProduct.coefficients] = mosgim_file 
+    return files
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Full stack (calculation, ionex, plots) MosGIM configuration.")
+
+    # Add arguments for each config option
+    parser.add_argument("--working_dir", type=Path, help="Path to calculation results")
+    parser.add_argument("--date", type=parse_datetime, help="Start date for conversion in format %Y-%m-%d")
+    parser.add_argument("--nworkers", type=int, help="Number of CPU cores to use")
+    parser.add_argument("--coords", type=str, choices=["mag", "geo", "modip"], help="Type of coordinates to use")
+    parser.add_argument("--lag_days", type=int, default=5, help="Number of days in past to check observation")
+    args = parser.parse_args()
+    return args
+
+if __name__ == '__main__':
+    cmd_args = parse_args()
+    
+    working_dir = cmd_args.working_dir
+    coords = cmd_args.coords 
+    epoch = cmd_args.date
+    nworkers = cmd_args.nworkers 
+    full_stack(epoch, working_dir, nworkers, coords)
