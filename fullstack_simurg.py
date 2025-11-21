@@ -21,6 +21,7 @@ def parse_datetime(datetime_str):
         raise argparse.ArgumentTypeError(
             f"Invalid datetime format: '{datetime_str}'. Expected YYYY-MM-DD"
         )
+
    
 def get_simurg_hdf(epoch: datetime, working_dir: Path) -> Path:
     str_date = epoch.strftime("%Y-%m-%d")
@@ -139,7 +140,8 @@ def parse_args():
     parser.add_argument("--date", type=parse_datetime, help="Start date for conversion in format %Y-%m-%d")
     parser.add_argument("--nworkers", type=int, help="Number of CPU cores to use")
     parser.add_argument("--coords", type=str, choices=["mag", "geo", "modip"], help="Type of coordinates to use")
-    parser.add_argument("--lag_days", type=int, default=5, help="Number of days in past to check observation")
+    parser.add_argument("--lag_days", type=int, default=5, help="Number of days in past to check observation to")
+    parser.add_argument("--check_days", type=int, default=30, help="Number of days in past to check observation from")
     args = parser.parse_args()
     return args
 
@@ -150,4 +152,19 @@ if __name__ == '__main__':
     coords = cmd_args.coords 
     epoch = cmd_args.date
     nworkers = cmd_args.nworkers 
-    full_stack(epoch, working_dir, nworkers, coords)
+    check_days = cmd_args.check_days
+    lag_days = cmd_args.lag_days
+    if epoch:
+        full_stack(epoch, working_dir, nworkers, coords)
+    else:
+        now = datetime.now().replace(tzinfo=UTC)
+        current = now - timedelta(days=check_days)
+        stop = now - timedelta(days=lag_days)
+        while current < stop:
+            try:
+                full_stack(current, working_dir, nworkers, coords)
+            except Exception as e:
+                print(f"Unknown error for {current}: {str(e)}")
+            current = current + timedelta(days=1)
+
+        
