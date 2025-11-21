@@ -69,7 +69,7 @@ def process(data_path, res_file, data_type, coords, nworkers, override=False) ->
 
     if data_type == "tecsuite-dat" and Path(data_path).is_dir(): 
         loader = LoaderTxt(root_dir=data_path, IPPh1 = IPPh_layer1, IPPh2 = IPPh_layer2)
-    elif data_type == "simurg-hdf" and Path(data_path).is_file() and data_path.endswith(".h5"):
+    elif data_type == "simurg-hdf" and Path(data_path).is_file() and str(data_path).endswith(".h5"):
         loader = LoaderHDF(data_path, IPPh1 = IPPh_layer1 / 1000., IPPh2 = IPPh_layer2 / 1000.)
     else:
         raise ValueError(
