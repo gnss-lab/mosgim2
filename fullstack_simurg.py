@@ -29,7 +29,12 @@ def get_simurg_hdf(epoch: datetime, working_dir: Path) -> Path:
     str_date = epoch.strftime("%Y-%m-%d")
     url = f"https://simurg.space/gen_file?data=obs&date={str_date}"
     print(f"Loading data from {url}...")
-    local_file = working_dir / f"observations_{str_date}.h5"
+    local_file = get_ionexlike_fname(
+        epoch, timedelta(days=1), 
+        MosgimProduct.observation, MosgimLayer.gim, 
+        version=0, sampling=timedelta(seconds=30)
+    )
+    local_file = working_dir / local_file
     response = requests.get(url, stream=True)
     response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
     if  local_file.exists() and 'Content-Length' in response.headers:
@@ -138,11 +143,10 @@ def full_stack(epoch: datetime, working_dir: Path, nworkers: int, coords: str):
         print(f"Saved MOSGIM results in '{mosgim_file}' ")
     except requests.exceptions.RequestException as e:
         print(f"An error occurred when retrieved data from remote server (SIMuRG): {e}")
-    except Exception as e:
-        print(f"Failed to process {epoch} due to:\n" + str(e))
 
     files = convert_and_plot(mosgim_file, epoch)
     files[MosgimProduct.coefficients] = mosgim_file 
+    files[MosgimProduct.observation] = observation_file 
     return files
 
 def parse_args():

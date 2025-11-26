@@ -64,6 +64,7 @@ class MosgimProduct(Enum):
     snapshot: str = "png"
     animation: str = "gif"
     coefficients: str = "hdf5"
+    observation: str = "h5"
 
 class MosgimLayer(Enum):
     ionosphere: str = "INS"
@@ -90,9 +91,14 @@ def __get_durtation_sampling(duration: timedelta, sampling: timedelta) -> Tuple[
         raise ValueError("Interval shorter than 1 hour are not implemented HERE for IONEX names. Read IONEX format")
     
     sampling_seconds = sampling.days * seconds_in_day + sampling.seconds # microseconds ignored
-    if sampling_seconds % seconds_in_minute != 0:
-        raise ValueError("Sampling with non-integer minutes are not implemented HERE for IONEX names. Read IONEX format")
-    if sampling_seconds < seconds_in_hour:
+    if sampling_seconds < 1 or int(sampling_seconds) != sampling_seconds:
+        raise ValueError(
+                "Sampling with less than second or with non-integer seconds not" \
+                " implemented HERE for IONEX names. Read IONEX format"
+            )
+    if sampling_seconds < seconds_in_minute:
+        sampling_ionex = str(sampling_seconds).zfill(2) + "S"
+    elif sampling_seconds < seconds_in_hour:
         nminutes = sampling_seconds // seconds_in_minute
         sampling_ionex = str(nminutes).zfill(2) + "M"
     else:
