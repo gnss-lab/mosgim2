@@ -1,6 +1,7 @@
 import argparse
 import requests
 import os
+import shutil
 
 from pathlib import Path
 from datetime import datetime, timedelta, UTC
@@ -83,6 +84,11 @@ def convert_and_plot(mosgim_file: Path, epoch: datetime) -> Dict[MosgimProduct |
     return files
 
 
+def get_location_in_db_tree(root_dir: Path, epoch: datetime):
+    pth = root_dir / str(epoch.year) / str(epoch.timetuple().tm_yday).zfill(0)
+    pth.mkdir(parents=True, exist_ok=True)
+    return pth
+
 def build_db_tree(root_dir: Path, prefix='MOS'):
     """
     Build a dictionary mapping datetime objects to file paths.
@@ -106,9 +112,10 @@ def build_db_tree(root_dir: Path, prefix='MOS'):
                     doy = int(Path(dirpath).name)
                     year = int(Path(dirpath).parent.name)
                     path_date = datetime(year, 1, 1, tzinfo=UTC) + timedelta(days=(doy-1))
-                    
-                    assert dt.replace(hour=0).replace(minute=0) == path_date, \
-                        f"Date retrieved from path and file name are not the same {dt}, {path_date}"
+                    file_date = dt.replace(hour=0).replace(minute=0)
+                    if not (file_date - path_date == timedelta(days=1) and filename.endswith(".png")):
+                        assert file_date == path_date, \
+                            f"Date retrieved from path and file name are not the same {dt}, {path_date}"
                     file_path = Path(dirpath) / filename
                     files[path_date].append(file_path.absolute())
                 except Exception as e:
@@ -166,16 +173,30 @@ if __name__ == '__main__':
         processed_dates = list(files.keys())
         print(f"Last processed date in {processed_dates[-1]}")
     if epoch:
-        full_stack(epoch, working_dir, nworkers, coords)
+        files = full_stack(epoch, working_dir, nworkers, coords)
+        pth = get_location_in_db_tree(database_dir, epoch)
+        for product, file in files.items():
+            shutil.move(file, pth / file.name)
     else:
         now = datetime.now().replace(tzinfo=UTC)
         current = processed_dates[-1] + timedelta(days=1)
         stop = now - timedelta(days=lag_days)
         while current < stop:
-            try:
-                full_stack(current, working_dir, nworkers, coords)
-            except Exception as e:
-                print(f"Unknown error for {current}: {str(e)}")
+            #try:
+            res_files = full_stack(current, working_dir, nworkers, coords)
+            pth = get_location_in_db_tree(database_dir, current)
+            for product, file in res_files.items():
+                print(product)
+                if  product == MosgimProduct.ionex:
+                    for f in file.values():
+                        shutil.move(f, pth / f.name)  
+                elif product == MosgimProduct.snapshot:
+                    for f in file:
+                        shutil.move(f, pth / f.name)  
+                else:
+                    shutil.move(file, pth / file.name)
+            #except Exception as e:
+            #    print(f"Unknown error for {current}: {str(e)}")
             current = current + timedelta(days=1)
 
         
