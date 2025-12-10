@@ -149,6 +149,18 @@ def full_stack(epoch: datetime, working_dir: Path, nworkers: int, coords: str):
     files[MosgimProduct.observation] = observation_file 
     return files
 
+def move_files(files):
+    for product, file in files.items():
+        print(product)
+        if  product == MosgimProduct.ionex:
+            for f in file.values():
+                shutil.move(f, pth / f.name)  
+        elif product == MosgimProduct.snapshot:
+            for f in file:
+                shutil.move(f, pth / f.name)  
+        else:
+            shutil.move(file, pth / file.name)
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Full stack (calculation, ionex, plots) MosGIM configuration.")
 
@@ -162,6 +174,7 @@ def parse_args():
     parser.add_argument("--check_days", type=int, default=30, help="Number of days in past to check observation from")
     args = parser.parse_args()
     return args
+    
 
 if __name__ == '__main__':
     cmd_args = parse_args()
@@ -175,13 +188,13 @@ if __name__ == '__main__':
     if working_dir:
         files = build_db_tree(database_dir)
         processed_dates = list(files.keys())
-        print(f"Last processed date in {processed_dates[-1]}")
     if epoch:
-        files = full_stack(epoch, working_dir, nworkers, coords)
+        res_files = full_stack(epoch, working_dir, nworkers, coords)
         pth = get_location_in_db_tree(database_dir, epoch)
-        for product, file in files.items():
-            shutil.move(file, pth / file.name)
+        move_files(res_files)
     else:
+        if not processed_dates:
+            raise ValueError("Don't know which date to process with, define --date")
         now = datetime.now().replace(tzinfo=UTC)
         current = processed_dates[-1] + timedelta(days=1)
         stop = now - timedelta(days=lag_days)
@@ -189,16 +202,7 @@ if __name__ == '__main__':
             #try:
             res_files = full_stack(current, working_dir, nworkers, coords)
             pth = get_location_in_db_tree(database_dir, current)
-            for product, file in res_files.items():
-                print(product)
-                if  product == MosgimProduct.ionex:
-                    for f in file.values():
-                        shutil.move(f, pth / f.name)  
-                elif product == MosgimProduct.snapshot:
-                    for f in file:
-                        shutil.move(f, pth / f.name)  
-                else:
-                    shutil.move(file, pth / file.name)
+            move_files(res_files)   
             #except Exception as e:
             #    print(f"Unknown error for {current}: {str(e)}")
             current = current + timedelta(days=1)
