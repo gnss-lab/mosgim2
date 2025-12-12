@@ -10,9 +10,22 @@ from collections import defaultdict
 
 # imports from project
 from process import process
-from converter import MosgimLayer, MosgimProduct, get_ionexlike_fname
+from converter import MosgimLayer, MosgimStages, MosgimProduct, get_ionexlike_fname
 from converter import prepare_maps, convert
 from plot import plot as plot_maps
+
+# TODO replace with method returning IONEX-like file names
+OBSERVATION_FILES = {
+    MosgimStages.preliminary: "https://gim.simurg.space/{year}/{doy}/MOS0OPSPRE_{year}{doy}0000_01D_30S_OBS.h5",
+    MosgimStages.final: "https://gim.simurg.space/{year}/{doy}/MOS0OPSFIN_{year}{doy}0000_01D_30S_OBS.h5",
+    MosgimStages.rapid: "https://gim.simurg.space/{year}/{doy}/MOS0OPSRAP_{year}{doy}0000_01D_30S_OBS.h5",
+}
+
+RESULT_FILES = {
+    MosgimStages.preliminary: "https://gim.simurg.space/{year}/{doy}/MOS0OPSPRE_{year}{doy}0000_01D_01H_CMB.hdf5",
+    MosgimStages.final: "https://gim.simurg.space/{year}/{doy}/MOS0OPSFIN_{year}{doy}0000_01D_01H_CMB.hdf5",
+    MosgimStages.rapid: "https://gim.simurg.space/{year}/{doy}/MOS0OPSRAP_{year}{doy}0000_01D_01H_CMB.hdf5",
+}
 
 def parse_datetime(datetime_str):
     try:
@@ -23,16 +36,38 @@ def parse_datetime(datetime_str):
         raise argparse.ArgumentTypeError(
             f"Invalid datetime format: '{datetime_str}'. Expected YYYY-MM-DD"
         )
+    
+def check_result_exists(epoch: datetime, stage: MosgimStages=MosgimStages.preliminary) -> bool:
+    year = datetime.strftime(epoch, "%Y")
+    doy =  datetime.strftime(epoch, "%j")
+   
+    file = RESULT_FILES[stage]
+    url = file.format(year = year, doy = doy)
+    response = requests.get(url, stream=True)
+    return response.status_code == requests.codes.ok
+        
 
    
-def get_simurg_hdf(epoch: datetime, working_dir: Path) -> Path:
-    str_date = epoch.strftime("%Y-%m-%d")
-    url = f"https://simurg.space/gen_file?data=obs&date={str_date}"
+def get_simurg_hdf(epoch: datetime, working_dir: Path, stage: MosgimStages=MosgimStages.preliminary) -> Path:
+
+    # The script should work with so call big file
+    #str_date = epoch.strftime("%Y-%m-%d")
+    #url = f"https://simurg.space/gen_file?data=obs&date={str_date}"
+    # However smaller amound could be retrieved
+    year = datetime.strftime(epoch, "%Y")
+    doy =  datetime.strftime(epoch, "%j")
+   
+    file = OBSERVATION_FILES[stage]
+    url = file.format(year = year, doy = doy)
     print(f"Loading data from {url}...")
     local_file = get_ionexlike_fname(
-        epoch, timedelta(days=1), 
-        MosgimProduct.observation, MosgimLayer.gim, 
-        version=0, sampling=timedelta(seconds=30)
+        epoch, 
+        timedelta(days=1), 
+        MosgimProduct.observation, 
+        MosgimLayer.gim, 
+        stage=stage,
+        version=0, 
+        sampling=timedelta(seconds=30)
     )
     local_file = working_dir / local_file
     response = requests.get(url, stream=True)
@@ -189,6 +224,10 @@ if __name__ == '__main__':
         files = build_db_tree(database_dir)
         processed_dates = list(files.keys())
     if epoch:
+        epoch_proccessed = check_result_exists(epoch)
+        if epoch_proccessed:
+            print(f"Files already proccessed for {epoch}")
+            exit()
         res_files = full_stack(epoch, working_dir, nworkers, coords)
         pth = get_location_in_db_tree(database_dir, epoch)
         move_files(res_files)
@@ -200,6 +239,10 @@ if __name__ == '__main__':
         stop = now - timedelta(days=lag_days)
         while current < stop:
             #try:
+            epoch_proccessed = check_result_exists(current)
+            if epoch_proccessed:
+                print(f"Files already proccessed for {epoch}")
+                continue
             res_files = full_stack(current, working_dir, nworkers, coords)
             pth = get_location_in_db_tree(database_dir, current)
             move_files(res_files)   

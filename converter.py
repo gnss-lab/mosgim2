@@ -71,9 +71,13 @@ class MosgimLayer(Enum):
     plasmasphere: str = "PLS"
     gim: str = "GIM"
     combined: str = "CMB"
+    observation: str = "OBS"
+    model: str = "MDL"
 
 class MosgimStages(Enum):
     final: str = "FIN"
+    rapid: str = "RAP"
+    preliminary: str = "PRE"
 
 def __get_durtation_sampling(duration: timedelta, sampling: timedelta) -> Tuple[str, str]:
     seconds_in_day = 3600 * 24
