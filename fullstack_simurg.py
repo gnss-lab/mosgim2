@@ -64,7 +64,7 @@ def get_simurg_hdf(epoch: datetime, working_dir: Path, stage: MosgimStages=Mosgi
         epoch, 
         timedelta(days=1), 
         MosgimProduct.observation, 
-        MosgimLayer.gim, 
+        MosgimLayer.observation, 
         stage=stage,
         version=0, 
         sampling=timedelta(seconds=30)
@@ -178,6 +178,11 @@ def full_stack(epoch: datetime, working_dir: Path, nworkers: int, coords: str):
         print(f"Saved MOSGIM results in '{mosgim_file}' ")
     except requests.exceptions.RequestException as e:
         print(f"An error occurred when retrieved data from remote server (SIMuRG): {e}")
+        return {}
+    except Exception as e:
+        print(f"Unknown error {e} occured when processing {epoch}")
+        return {}
+
 
     files = convert_and_plot(mosgim_file, epoch)
     files[MosgimProduct.coefficients] = mosgim_file 
@@ -205,7 +210,7 @@ def parse_args():
     parser.add_argument("--date", type=parse_datetime, help="Start date for conversion in format %Y-%m-%d")
     parser.add_argument("--nworkers", type=int, help="Number of CPU cores to use")
     parser.add_argument("--coords", type=str, choices=["mag", "geo", "modip"], help="Type of coordinates to use")
-    parser.add_argument("--lag_days", type=int, default=5, help="Number of days in past to check observation to")
+    parser.add_argument("--lag_days", type=int, default=1, help="Number of days in past to check observation to. ")
     parser.add_argument("--check_days", type=int, default=30, help="Number of days in past to check observation from")
     args = parser.parse_args()
     return args
@@ -242,6 +247,7 @@ if __name__ == '__main__':
             epoch_proccessed = check_result_exists(current)
             if epoch_proccessed:
                 print(f"Files already proccessed for {epoch}")
+                current = current + timedelta(days=1)
                 continue
             res_files = full_stack(current, working_dir, nworkers, coords)
             pth = get_location_in_db_tree(database_dir, current)
